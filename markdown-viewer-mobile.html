@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mobile Offline Markdown Viewer</title>
+<style>
+  :root{--h1:#179BAE;--h2:#E67E22;--h3:#7E57C2;--h4:#2E7D32;--text:#1f2937;--muted:#64748b;--border:#e5e7eb;--bg:#f6f8fb;--card:#fff;--code:#f8fafc;--accent:#179BAE}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);line-height:1.65;font-size:16px}
+  header{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);z-index:5;padding:14px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#179BAE,#7E57C2);color:white;display:grid;place-items:center;font-weight:800}
+  .actions{display:flex;gap:8px;flex-wrap:wrap} button,.filebtn{border:1px solid var(--border);background:white;color:#111827;border-radius:10px;padding:9px 12px;font-size:15px;cursor:pointer} button.primary,.filebtn.primary{background:var(--accent);color:white;border-color:var(--accent)} input[type=file]{display:none}
+  main{max-width:980px;margin:18px auto;padding:0 14px 40px}.panel{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 10px 30px rgba(15,23,42,.08);padding:24px;overflow:hidden}.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:26px;text-align:center;color:var(--muted);background:#fff;margin-bottom:18px}.drop.active{border-color:var(--accent);background:#ecfeff}.status{font-size:14px;color:var(--muted);margin:8px 0 18px}.error{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px;border-radius:10px;display:none;margin:10px 0}.paste{display:none;margin:12px 0}.paste textarea{width:100%;min-height:220px;border:1px solid var(--border);border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:14px}
+  #content{padding-top:12px}.empty{color:var(--muted);text-align:center;padding:40px 12px} h1{color:var(--h1);font-size:2rem;border-bottom:2px solid var(--border);padding-bottom:.25rem;margin:1.6rem 0 1rem} h2{color:var(--h2);font-size:1.55rem;border-bottom:1px solid var(--border);padding-bottom:.15rem;margin:1.45rem 0 .8rem} h3{color:var(--h3);font-size:1.25rem;margin:1.2rem 0 .6rem} h4{color:var(--h4);font-size:1.1rem;margin:1rem 0 .45rem} p{margin:.7rem 0} ul,ol{padding-left:1.45rem;margin:.5rem 0} li{margin:.25rem 0} li>ul,li>ol{margin:.2rem 0 .35rem 0;padding-left:1.4rem;border-left:2px solid #eef2f7} table{border-collapse:collapse;width:100%;margin:1rem 0;display:block;overflow-x:auto} th,td{border:1px solid #d7dde6;padding:8px 10px;vertical-align:top} th{background:#f3f4f6;color:#179BAE;font-weight:800} code{background:#f1f5f9;padding:.12rem .28rem;border-radius:5px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em} pre{background:var(--code);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto;white-space:pre-wrap;word-break:break-word} pre code{background:transparent;padding:0;border-radius:0} blockquote{border-left:4px solid #179BAE;margin:1rem 0;padding:.25rem 1rem;color:#4b5563;background:#f8fafc;border-radius:0 10px 10px 0} hr{border:0;border-top:1px solid var(--border);margin:1.8rem 0}.mermaidbox{border:1px solid #c7d2fe;background:#eef2ff;border-radius:12px;padding:10px;margin:1rem 0}.mermaidbox .label{font-weight:700;color:#4338ca;margin-bottom:6px;font-size:14px}
+  @media print{header,.drop,.status,.error,.paste{display:none!important}main{max-width:none;margin:0;padding:0}.panel{box-shadow:none;border:0;border-radius:0}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">MD</div><div>Mobile Offline Markdown Viewer</div></div><div class="actions"><label class="filebtn primary" for="fileInput">Choose MD File</label><button id="pasteBtn">Paste MD</button><button onclick="window.print()">Print / PDF</button><button id="clearBtn">Clear</button></div></header>
+<main><div class="panel"><input id="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain,*/*"><div id="drop" class="drop"><strong>Drop your .md file here</strong><br>or tap <strong>Choose MD File</strong>. If file import fails on iPhone, use <strong>Paste MD</strong>.</div><div id="status" class="status">No file loaded.</div><div id="error" class="error"></div><div id="paste" class="paste"><textarea id="pasteText" placeholder="Paste markdown here..."></textarea><br><button class="primary" id="renderPaste">Render pasted markdown</button></div><div id="content"><div class="empty">Select a Markdown file to preview it here.</div></div></div></main>
+<script>
+const fileInput=document.getElementById('fileInput'), drop=document.getElementById('drop'), statusEl=document.getElementById('status'), errorEl=document.getElementById('error'), content=document.getElementById('content'), paste=document.getElementById('paste');
+function showError(msg){errorEl.textContent=msg;errorEl.style.display='block'} function clearError(){errorEl.style.display='none';errorEl.textContent=''}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function inline(s){let x=escapeHtml(s); x=x.replace(/`([^`]+)`/g,'<code>$1</code>'); x=x.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); x=x.replace(/\*([^*]+)\*/g,'<em>$1</em>'); x=x.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>'); return x}
+function stripStyle(md){return md.replace(/<style[\s\S]*?<\/style>/gi,'').trimStart()}
+function render(md){clearError(); md=stripStyle(md).replace(/\r\n?/g,'\n'); const lines=md.split('\n'); let html='', inCode=false, codeLang='', code=[]; let para=[]; let listStack=[];
+function closePara(){ if(para.length){html+='<p>'+inline(para.join(' '))+'</p>'; para=[];} }
+function closeLists(to=0){while(listStack.length>to){html+= listStack.pop()==='ol'?'</ol>':'</ul>';}}
+function flushCode(){ const text=code.join('\n'); if(codeLang.toLowerCase()==='mermaid'){html+='<div class="mermaidbox"><div class="label">Mermaid diagram source</div><pre><code>'+escapeHtml(text)+'</code></pre></div>';} else {html+='<pre><code>'+escapeHtml(text)+'</code></pre>';} code=[]; }
+function tableBlock(start){let rows=[],i=start; while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){rows.push(lines[i]); i++;} if(rows.length>=2 && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(rows[1])){let out='<table>'; rows.forEach((r,idx)=>{ if(idx===1)return; let cells=r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim()); out += idx===0?'<thead><tr>':'<tr>'; cells.forEach(c=>out += idx===0?'<th>'+inline(c)+'</th>':'<td>'+inline(c)+'</td>'); out += idx===0?'</tr></thead><tbody>':'</tr>';}); out+='</tbody></table>'; html+=out; return i;} return start; }
+for(let i=0;i<lines.length;i++){let line=lines[i];
+ if(/^```/.test(line.trim())){ if(!inCode){closePara();closeLists();inCode=true;codeLang=line.trim().slice(3).trim();} else {inCode=false;flushCode();codeLang='';} continue; }
+ if(inCode){code.push(line);continue;}
+ if(/^\s*$/.test(line)){closePara();continue;}
+ let ti=tableBlock(i); if(ti!==i){closePara();closeLists();i=ti-1;continue;}
+ let h=line.match(/^(#{1,6})\s+(.+)$/); if(h){closePara();closeLists();let lvl=h[1].length; html+=`<h${lvl}>${inline(h[2])}</h${lvl}>`; continue;}
+ if(/^---+$/.test(line.trim())){closePara();closeLists();html+='<hr>';continue;}
+ if(/^>\s?/.test(line)){closePara();closeLists();let b=[]; while(i<lines.length && /^>\s?/.test(lines[i])){b.push(lines[i].replace(/^>\s?/,''));i++;} i--; html+='<blockquote>'+inline(b.join(' '))+'</blockquote>';continue;}
+ let lm=line.match(/^(\s*)([-*+] |\d+\.\s+)(.*)$/); if(lm){closePara(); let indent=Math.floor(lm[1].replace(/\t/g,'    ').length/2); let type=/\d+\./.test(lm[2])?'ol':'ul'; if(listStack.length<=indent){while(listStack.length<=indent){html+=`<${type}>`;listStack.push(type);}} else closeLists(indent+1); if(listStack[indent]!==type){closeLists(indent); html+=`<${type}>`; listStack.push(type);} html+='<li>'+inline(lm[3])+'</li>'; continue;}
+ closeLists(); para.push(line.trim());
+}
+closePara();closeLists(); if(inCode)flushCode(); content.innerHTML=html || '<div class="empty">The file was empty.</div>';}
+function loadFile(file){clearError(); if(!file){return;} statusEl.textContent='Loading: '+file.name+' ...'; const reader=new FileReader(); reader.onerror=()=>{showError('Could not read this file. On iPhone, try saving the .md to Files > On My iPhone, then choose it again, or use Paste MD.'); statusEl.textContent='File read failed.'}; reader.onload=()=>{try{render(String(reader.result||'')); statusEl.textContent='Loaded: '+file.name;}catch(e){showError('Render error: '+e.message); statusEl.textContent='Render failed.'}}; reader.readAsText(file);}
+fileInput.addEventListener('change',e=>loadFile(e.target.files[0]));
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('active')})); ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('active')})); drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+document.getElementById('pasteBtn').onclick=()=>{paste.style.display=paste.style.display==='block'?'none':'block'}; document.getElementById('renderPaste').onclick=()=>{render(document.getElementById('pasteText').value); statusEl.textContent='Rendered pasted markdown.'}; document.getElementById('clearBtn').onclick=()=>{content.innerHTML='<div class="empty">Select a Markdown file to preview it here.</div>';statusEl.textContent='No file loaded.';clearError();fileInput.value='';};
+</script>
+</body>
+</html>

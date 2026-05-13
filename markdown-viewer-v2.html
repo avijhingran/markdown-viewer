@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline Markdown Viewer</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --h1-color: #179BAE;
+      --h2-color: #E67E22;
+      --h3-color: #7E57C2;
+      --h4-color: #2E7D32;
+      --code-bg: #f3f4f6;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; font-size: 18px; }
+    .brand-icon {
+      width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+      color: white; background: linear-gradient(135deg, #179BAE, #7E57C2);
+    }
+    .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button, .file-label {
+      border: 1px solid var(--border); background: white; color: var(--text);
+      padding: 8px 12px; border-radius: 10px; font-size: 14px; cursor: pointer;
+      transition: 0.15s ease; user-select: none;
+    }
+    button:hover, .file-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    input[type="file"] { display: none; }
+    main { max-width: 1120px; margin: 26px auto; padding: 0 22px 60px; }
+    .drop-zone {
+      border: 2px dashed #cbd5e1; background: var(--panel); border-radius: 18px;
+      padding: 54px 28px; text-align: center; box-shadow: var(--shadow);
+    }
+    .drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+    .drop-title { font-weight: 700; margin-bottom: 8px; font-size: 18px; }
+    .drop-subtitle { color: var(--muted); margin-bottom: 16px; }
+    .file-name { color: var(--muted); font-size: 14px; margin-top: 8px; }
+    #status { margin-top: 12px; color: var(--muted); font-size: 14px; }
+    #content {
+      display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
+      padding: 34px; box-shadow: var(--shadow);
+    }
+    .doc-title {
+      color: var(--muted); font-size: 14px; padding-bottom: 14px; margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1, h2, h3, h4 { line-height: 1.25; scroll-margin-top: 90px; }
+    h1 { color: var(--h1-color); font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.35rem; margin-top: 2.2rem; }
+    h2 { color: var(--h2-color); font-size: 1.55rem; border-bottom: 1px solid var(--border); padding-bottom: 0.2rem; margin-top: 2rem; }
+    h3 { color: var(--h3-color); font-size: 1.25rem; margin-top: 1.5rem; }
+    h4 { color: var(--h4-color); font-size: 1.08rem; margin-top: 1.1rem; }
+    p { margin: 0.65rem 0; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ul, ol { padding-left: 1.55rem; margin: 0.35rem 0 0.7rem; }
+    li { margin: 0.25rem 0; }
+    li > ul, li > ol { margin-top: 0.25rem; padding-left: 1.35rem; border-left: 2px solid #eef2f7; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0 1.4rem; font-size: 0.95rem; }
+    th, td { border: 1px solid #d0d7de; padding: 8px 10px; vertical-align: top; }
+    th { background: #f3f4f6; color: #179BAE; font-weight: 750; text-align: left; }
+    tr:nth-child(even) td { background: #fbfdff; }
+    pre { background: var(--code-bg); padding: 14px; border-radius: 10px; overflow-x: auto; border: 1px solid #e5e7eb; }
+    code { background: #f6f8fa; padding: 0.12rem 0.28rem; border-radius: 4px; font-family: Consolas, Monaco, "Courier New", monospace; font-size: 0.92em; }
+    pre code { background: transparent; padding: 0; border-radius: 0; }
+    blockquote { border-left: 4px solid #179BAE; padding: 0.3rem 0 0.3rem 1rem; color: #4b5563; margin: 1rem 0; background: #f8fafc; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .mermaid-box { border: 1px solid #dbeafe; background: #f8fbff; border-radius: 12px; margin: 1rem 0; overflow: hidden; }
+    .mermaid-label { font-size: 12px; font-weight: 700; color: #2563eb; padding: 8px 12px; border-bottom: 1px solid #dbeafe; background: #eff6ff; }
+    .mermaid-box pre { margin: 0; border: 0; border-radius: 0; background: #ffffff; }
+    .empty { text-align: center; color: var(--muted); padding: 70px 20px; }
+    @media print {
+      header, .drop-zone { display: none !important; }
+      body { background: white; }
+      main { max-width: none; margin: 0; padding: 0; }
+      #content { display: block !important; box-shadow: none; border: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand"><div class="brand-icon">MD</div><span>Offline Markdown Viewer</span></div>
+      <div class="actions">
+        <label for="fileInput" class="file-label">Choose MD File</label>
+        <input id="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" />
+        <button id="printBtn" type="button">Print / Save PDF</button>
+        <button id="resetBtn" type="button">Clear</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section id="dropZone" class="drop-zone">
+      <div class="drop-title">📁 Drop your .md file here or click “Choose MD File”</div>
+      <div class="drop-subtitle">Self-contained viewer. No CDN or internet required. Supports headings, tables, code blocks, and nested bullets.</div>
+      <div id="fileName" class="file-name"></div>
+      <div id="status">Waiting for a Markdown file…</div>
+    </section>
+    <article id="content"></article>
+  </main>
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const content = document.getElementById('content');
+    const fileName = document.getElementById('fileName');
+    const statusEl = document.getElementById('status');
+    const resetBtn = document.getElementById('resetBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function inlineMarkdown(text) {
+      let s = escapeHtml(text);
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+      s = s.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+      s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return s;
+    }
+
+    function isTableSeparator(line) {
+      return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+    }
+
+    function parseTable(lines, start) {
+      const rows = [];
+      let i = start;
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim() !== '') {
+        if (!isTableSeparator(lines[i])) rows.push(lines[i]);
+        i++;
+      }
+      function cells(row) {
+        let r = row.trim();
+        if (r.startsWith('|')) r = r.slice(1);
+        if (r.endsWith('|')) r = r.slice(0, -1);
+        return r.split('|').map(c => inlineMarkdown(c.trim()));
+      }
+      let html = '<table>';
+      rows.forEach((row, idx) => {
+        const tag = idx === 0 ? 'th' : 'td';
+        html += '<tr>' + cells(row).map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+      });
+      html += '</table>';
+      return { html, next: i };
+    }
+
+    function parseListBlock(blockLines) {
+      const items = blockLines.map(line => {
+        const m = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+        return { indent: m[1].replace(/\t/g, '    ').length, ordered: /\d+\./.test(m[2]), text: m[3], children: [] };
+      });
+      const root = { indent: -1, children: [] };
+      const stack = [{ indent: -1, node: root }];
+      items.forEach(item => {
+        while (stack.length > 1 && item.indent <= stack[stack.length - 1].indent) stack.pop();
+        stack[stack.length - 1].node.children.push(item);
+        stack.push({ indent: item.indent, node: item });
+      });
+      function renderList(children) {
+        if (!children || !children.length) return '';
+        const ordered = children.every(c => c.ordered);
+        const tag = ordered ? 'ol' : 'ul';
+        return `<${tag}>` + children.map(c => `<li>${inlineMarkdown(c.text)}${renderList(c.children)}</li>`).join('') + `</${tag}>`;
+      }
+      return renderList(root.children);
+    }
+
+    function parseMarkdown(md) {
+      // Safety cleanup: some markdown notes may accidentally contain a raw <style>...</style> block.
+      // Strip it so the viewer CSS controls headings and the CSS is not shown as content.
+      md = String(md || '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '').trimStart();
+      const lines = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      let html = '';
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed) { i++; continue; }
+
+        const fence = trimmed.match(/^```\s*([^`]*)$/);
+        if (fence) {
+          const lang = (fence[1] || '').trim().toLowerCase();
+          i++;
+          const codeLines = [];
+          while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
+          if (i < lines.length) i++;
+          const code = escapeHtml(codeLines.join('\n'));
+          if (lang === 'mermaid') {
+            html += `<div class="mermaid-box"><div class="mermaid-label">Mermaid diagram source</div><pre><code>${code}</code></pre></div>`;
+          } else {
+            html += `<pre><code>${code}</code></pre>`;
+          }
+          continue;
+        }
+
+        if (/^---+$/.test(trimmed)) { html += '<hr>'; i++; continue; }
+
+        const heading = line.match(/^(#{1,6})\s+(.*)$/);
+        if (heading) {
+          const level = Math.min(heading[1].length, 4);
+          html += `<h${level}>${inlineMarkdown(heading[2].trim())}</h${level}>`;
+          i++;
+          continue;
+        }
+
+        if (trimmed.startsWith('>')) {
+          const quoteLines = [];
+          while (i < lines.length && lines[i].trim().startsWith('>')) {
+            quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
+            i++;
+          }
+          html += `<blockquote>${quoteLines.map(inlineMarkdown).join('<br>')}</blockquote>`;
+          continue;
+        }
+
+        if (i + 1 < lines.length && line.includes('|') && isTableSeparator(lines[i + 1])) {
+          const parsed = parseTable(lines, i);
+          html += parsed.html;
+          i = parsed.next;
+          continue;
+        }
+
+        if (/^\s*([-*+]|\d+\.)\s+/.test(line)) {
+          const listLines = [];
+          while (i < lines.length && /^\s*([-*+]|\d+\.)\s+/.test(lines[i])) { listLines.push(lines[i]); i++; }
+          html += parseListBlock(listLines);
+          continue;
+        }
+
+        const para = [];
+        while (i < lines.length) {
+          const t = lines[i].trim();
+          if (!t || /^#{1,6}\s+/.test(lines[i]) || /^```/.test(t) || /^\s*([-*+]|\d+\.)\s+/.test(lines[i]) || t.startsWith('>') || (i + 1 < lines.length && lines[i].includes('|') && isTableSeparator(lines[i + 1])) || /^---+$/.test(t)) break;
+          para.push(lines[i]);
+          i++;
+        }
+        html += `<p>${inlineMarkdown(para.join(' ').trim())}</p>`;
+      }
+      return html;
+    }
+
+    function loadMarkdownText(text, name) {
+      try {
+        content.innerHTML = `<div class="doc-title">${escapeHtml(name || 'Markdown file')}</div>` + parseMarkdown(text);
+        content.style.display = 'block';
+        dropZone.style.display = 'none';
+        document.title = name ? `${name} - Markdown Viewer` : 'Markdown Viewer';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Could not render this file. See browser console for details.';
+      }
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      fileName.textContent = file.name;
+      statusEl.textContent = 'Reading file…';
+      const reader = new FileReader();
+      reader.onload = event => loadMarkdownText(event.target.result || '', file.name);
+      reader.onerror = () => { statusEl.textContent = 'Could not read the selected file.'; };
+      reader.readAsText(file);
+    }
+
+    fileInput.addEventListener('change', event => handleFile(event.target.files[0]));
+    dropZone.addEventListener('dragover', event => { event.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', event => {
+      event.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFile(event.dataTransfer.files[0]);
+    });
+    resetBtn.addEventListener('click', () => {
+      content.innerHTML = '';
+      content.style.display = 'none';
+      dropZone.style.display = 'block';
+      fileInput.value = '';
+      fileName.textContent = '';
+      statusEl.textContent = 'Waiting for a Markdown file…';
+      document.title = 'Markdown Viewer';
+    });
+    printBtn.addEventListener('click', () => window.print());
+  </script>
+</body>
+</html>
